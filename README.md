@@ -68,6 +68,70 @@ Scrapy crawl “이름” 이때 이름은 아까 class QuoteSpider에서 설정
 {'titletext': ['Quotes to Scrape']}
 이렇게 나온다.
 
+ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+scrapy shell "https://quotes.toscrape.com/"
+
+이렇게 하면, 해당 사이트에서 shell로 크롤링을 할 수가 있는데
+아까 본 명령어들 사용가능하다
+response.css("title::text").extract()
+이렇게 가능한데
+
+response.css(“title::text”)[0].extract() 이거나
+response.css(“title:text”).extract_first() 나 같은 거 나온다
+
+맨 앞에 있는 게 [0]을 사용한다면 오류가 발생하는데, extract_first()를 사용하면 null이 나온다
+그래서 인덱스를 쓰는 것 보단 first() 이런식으로 사용하는 것을 추천한다
+
+만약
+<span class="text" itemprop="text">“The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.”</span>
+이렇게 생긴 거 가져오고 싶다?
+response.css(“span.text::text”)
+하면 된다.
+
+Class 를 가져오는 거기 때문에 span 에서의 클래스 . 을 붙여서 사용한다
+
+
+
+
+Selector gadget chrome을 이용해서, 해당 스타일 부분 추출가능
+
+ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+셀렉터에는 두 가지가 있다
+하나는 이전까지 썼던 css 셀렉터
+두 번째는 xpath 셀렉터이다
+
+response.xpath("//title").extract()
+이렇게 사용한다
+response.xpath("//title/text()").extract()
+text만 추출할려면, css선택자를 사용했을 때에는 ::text를 붙였었지만, xpath 선택자를 사용할려면 /text() 를 붙여주어야한다.
+
+그렇다면 아까처럼, span.text::text 	를 하고 싶으면?
+
+response.xpath("//span[@class='text']/text()").extract()
+좀 복잡해졌다.
+//span 뒤에 [] 이렇게 들어가는데, 클래스임을 명시해주기 위해 @class가 붙고 @class=‘text’ 가 들어간다. 이걸 text로 출력하기 위해 /text()가 붙는다
+
+얘도 인덱스 가능
+Id 할 경우 @id”text” 이렇게 하면 된다
+
+큰따옴표, 작은따옴표 조심할 것!
+
+response.css("li.next a").xpath("@href").extract()
+이렇게 하면
+<li class="next">
+                <a href="/page/2/">Next <span aria-hidden="true">→</span></a>
+            </li>
+여기서
+href에서 연결된 링크를 가져올 수 있음
+
+response.css("a").xpath("@href").extract()
+이렇게 쓰면 모든 연결된 링크를 싹 가져올 수 있음
+xpath는 유니크한 거 가져올때 사용함
+
+
+
+
 
 
 
