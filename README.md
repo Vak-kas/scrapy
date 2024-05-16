@@ -129,6 +129,99 @@ response.css("a").xpath("@href").extract()
 이렇게 쓰면 모든 연결된 링크를 싹 가져올 수 있음
 xpath는 유니크한 거 가져올때 사용함
 
+ㅇㅋ 이제 잘 됐는데
+문제는 만약에 1ㄷ1 이면 상관이 없는데 1ㄷ다 이런 관계라면, 무엇에 무엇이 있는지 매칭이 안 될 것이기에
+for 문으로 실행한다
+
+import scrapy
+
+class QuoteSpider(scrapy.Spider):
+    name = 'quotes' #이름 변수, 스파이더 내부에서 사용할
+    start_urls = [ #url 리스트가 필요함
+        'https://quotes.toscrape.com/' #스크랩할 url
+    ]
+
+    def parse(self, response):
+        
+        all_div_quotes = response.css("div.quote")
+
+        for quotes in all_div_quotes:
+
+            title =  quotes.css('span.text::text').extract()
+            author = quotes.css('.author::text').extract()
+            tag = quotes.css('.tag::text').extract()
+            yield {
+                'title' : title,
+                'author' : author,
+                'tag' : tag
+            }
+
+        
+
+
+이런식으로 설정을 하면 된다.
+
+ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+추출된 데이터 -> 임시 컨테이너(items) -> 데이터베이스에 저장
+추출된 데이터를 바로 데이터베이스에 저장하는 것은 오류가 많고 힘들기에, 임시 컨테이너에 데이터를 저장하고 이를 저장해야한다.
+
+items.py 에서 작성을 하는 데
+# Define here the models for your scraped items
+#
+# See documentation in:
+# https://docs.scrapy.org/en/latest/topics/items.html
+
+import scrapy
+
+
+class QuotetutorialItem(scrapy.Item):
+    # define the fields for your item here like:
+    title = scrapy.Field()
+    author = scrapy.Field()
+    tags = scrapy.Field()
+    
+
+이러식으로 작성했다.
+
+그다음, quotes_spider.py 를
+import scrapy
+from ..items import QuotetutorialItem
+class QuoteSpider(scrapy.Spider):
+    name = 'quotes' #이름 변수, 스파이더 내부에서 사용할
+    start_urls = [ #url 리스트가 필요함
+        'https://quotes.toscrape.com/' #스크랩할 url
+    ]
+
+    def parse(self, response):
+        items = QuotetutorialItem()
+        
+        all_div_quotes = response.css("div.quote")
+
+        for quotes in all_div_quotes:
+
+            title =  quotes.css('span.text::text').extract()
+            author = quotes.css('.author::text').extract()
+            tag = quotes.css('.tag::text').extract()
+
+            items['title'] = title
+            items['author'] = author
+            items['tag'] = tag
+
+            yield items
+
+        
+
+이렇게 수정하면 items에 저장하는 방식으로 설정이 되었고, 임시 저장소에 저장하는 방식으로 되었다. 이제 이걸 데이터베이스에 저장해야한다.
+어떻게 추출된 데이터를 JSON 파일이나 CSV 파일이나 XML 파일에 저장하는가 부터 배우고, 이걸 이제 나중에 SQLite 에 저장하는 법을 배운다.
+일단 파일로 저장하는 법 부터 확인하다...
+
+
+scrapy crawl quotes -o items.json
+이렇게 하면 items.json으로 저장이 됨
+맨 뒤에 .json/.xml/.csv 로 설정해주면 됨
+와 ! 매우 쉽다!
+
 
 
 
