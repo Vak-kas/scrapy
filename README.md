@@ -222,7 +222,186 @@ scrapy crawl quotes -o items.json
 맨 뒤에 .json/.xml/.csv 로 설정해주면 됨
 와 ! 매우 쉽다!
 
+ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+데이터 베이스에 저장하기 전에 itmes에 저장을 했는데, 이 다음 한 가지 단계가 더 있다.
+파이프 라인 설정을 해야한다.
 
+ITEM_PIPELINES = {
+   "quotetutorial.pipelines.QuotetutorialPipeline": 300,
+}
+settings.py 에서 해당 라인을 킨다. 맨 뒤에 300 이건 우선순위를 의미한다. 낮으면 우선순위가 더 높음!
+
+ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+데이터 베이스를 만들자
+database.py 파일을 만들고
+import sqlite3
+
+conn = sqlite3.connect('myquotes.db')
+이렇게 하고 실행을 하며 데이터베이스가 만들어진다.
+
+커서(cursor)는 데이터베이스에서 SQL 쿼리를 실행하고 그 결과를 처리하는 객체
+커서 연결하고, SQL 언어를 execute 내부에 넣는다
+import sqlite3
+
+conn = sqlite3.connect('myquotes.db')
+curr = conn.cursor()
+
+# curr.execute("""create table quotes_tb(
+#              title text,
+#              author text,
+#              tag text
+#             )""")
+
+curr.execute("""insert into quotes_tb values ('a', 'b', 'c')""")
+
+
+conn.commit()
+conn.close()
+
+이런식으로. 마지막 커밋은 저장, 클로즈는 닫기
+
+이제 SQLite에 저장하기 위해서
+database.py와 디비는 삭제하고, pipline을 수정한다
+
+# Define your item pipelines here
+#
+# Don't forget to add your pipeline to the ITEM_PIPELINES setting
+# See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+
+
+# useful for handling different item types with a single interface
+from itemadapter import ItemAdapter
+import sqlite3
+
+
+class QuotetutorialPipeline:
+    def __init__(self):
+        self.create_connection()
+        self.create_table()
+
+    def create_connection(self):
+        self.conn = sqlite3.connect("myquotes.db")
+        self.curr = self.conn.cursor()
+
+    def create_table(self):
+        self.curr.execute("""DROP TABLE IF EXISTS quotes""")
+        self.curr.execute("""create table quotes_tb(
+                title text,
+                author text,
+                tag text
+                )""")
+
+
+
+    def process_item(self, item, spider):
+        self.store_db(item)
+        # print("Pipeline : " + item['title'][0])
+        return item
+    
+    def store_db(self, item):
+        self.curr.execute("""insert into quotes_tb values (?, ?, ?)""",(
+            item['title'][0],
+            item['author'][0],
+            item['tag'][0]
+        ))
+        self.conn.commit()
+
+
+sqlite3언어에 맞춰서 클래스 내부에다가 데베 생성, 연결, 테이블 생성등의 역할을 하고, 받아온 item을 사용해서 넘겨주는 역할이다
+실제로 잘 작동하는데, 문제는 tag같은 경우에는 여러개가 있기 때문에 이를 전부 저장하려면 태그 데이터베이스 테이블을 새로 만들고 여기에 저장하는 방식으로 설정해야한다
+
+
+다음은 MySQL 데이터베이스 저장하는 방식이다.
+
+mysql 맥에서 왜 안 돌아가는지 몰라서 일단 패스;;;
+가상환경 떄문인가;;;
+몽고 디비도 패스
+
+아 됐다! 행복하네
+ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+그 다음, 이제 타고타고 넘어가는...페이지가 여러 개일 때 2번 페이지 3번페이지 4번페이지...이렇게 넘어가야한다
+    def parse(self, response):
+        items = QuotetutorialItem()
+        
+        all_div_quotes = response.css("div.quote")
+
+        for quotes in all_div_quotes:
+
+            title =  quotes.css('span.text::text').extract()
+            author = quotes.css('.author::text').extract()
+            tag = quotes.css('.tag::text').extract()
+
+            items['title'] = title
+            items['author'] = author
+            items['tag'] = tag
+
+            yield items
+
+        next_page = response.css('li.next a::attr(href)').get()
+
+        if next_page is not None:
+            yield response.follow(next_page, callback=self.parse)
+
+맨 아래쪽에 next_page 부터 시작해서, 다음으로 넘어가는 주소를 불어오고, 만약에 다음페이지가 존재한다면
+yield 를 해서 response.follow()를 사용한다.
+다음으로 넘어간다는 의미인데
+어디로? next_page로, 찾으면 다시 재귀적으로 parse함수를 실행하라는 의미이다.
+
+
+만약에 multiple 페이지라면....? 1, 2, 3, 4, 5...1000 중에서 선택하는 그런 상태라면?
+즉, 페이지가 1칸씩 올라가는 게 아니라면이라는 의미이다.
+&page=5 막 이런식으로...
+
+
+import scrapy
+from ..items import QuotetutorialItem
+class QuoteSpider(scrapy.Spider):
+    name = 'quotes' #이름 변수, 스파이더 내부에서 사용할
+    start_urls = [ #url 리스트가 필요함
+        # 'https://quotes.toscrape.com/' #스크랩할 url
+        'https://quotes.toscrape.com/page/1/'
+    ]
+    page_number = 2 #페이지 넘버를 저장할 변수
+
+    def parse(self, response):
+        items = QuotetutorialItem()
+        
+        all_div_quotes = response.css("div.quote")
+
+        for quotes in all_div_quotes:
+
+            title =  quotes.css('span.text::text').extract()
+            author = quotes.css('.author::text').extract()
+            tag = quotes.css('.tag::text').extract()
+
+            items['title'] = title
+            items['author'] = author
+            items['tag'] = tag
+
+            yield items
+
+        # next_page = response.css('li.next a::attr(href)').get()
+        next_page = f'https://quotes.toscrape.com/page/{str(QuoteSpider.page_number)}/'
+
+        # if next_page is not None:
+        #     yield response.follow(next_page, callback=self.parse)
+
+        if QuoteSpider.page_number < 11:
+            QuoteSpider.page_number+=1
+            yield response.follow(next_page, callback=self.parse)
+
+
+page_number 변수 생성되고, 직접적으로 주소로 접근하는 방식으로 변경되었다.
+
+        
+
+
+        
+
+
+
+        
 
 
 
