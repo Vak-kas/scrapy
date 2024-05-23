@@ -14,7 +14,7 @@ class QuoteSpider(scrapy.Spider):
     def parse(self, response):
         token = response.css('form input ::attr(value)'). extract_first()
         # print("token : " , token)
-        return FormRequest.from_response(response, formdata={
+        return FormRequest.from_response(response, formdata={ #로그인 폼 제출
             'csrf_token' : token, 
             'username' : '1111', 
             'password' : '2222'

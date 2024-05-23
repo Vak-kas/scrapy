@@ -1,4 +1,4 @@
-# Scrapy settings for practice project
+# Scrapy settings for recursion_url project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,21 +7,17 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "practice"
+BOT_NAME = "recursion_url"
 
-SPIDER_MODULES = ["practice.spiders"]
-NEWSPIDER_MODULE = "practice.spiders"
+SPIDER_MODULES = ["recursion_url.spiders"]
+NEWSPIDER_MODULE = "recursion_url.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "practice (+http://www.yourdomain.com)"
-USER_AGENT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome"
-
+#USER_AGENT = "recursion_url (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
-
-PROXY_POOL_ENABLED = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
@@ -49,28 +45,17 @@ PROXY_POOL_ENABLED = True
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "practice.middlewares.PracticeSpiderMiddleware": 543,
+#    "recursion_url.middlewares.RecursionUrlSpiderMiddleware": 543,
 #}
 
-# DOWNLOADER_MIDDLEWARES = {
-#     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-#     'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
-# }
-
-
-DOWNLOADER_MIDDLEWARES = {
-    # ...
-   #  'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
-   #  'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
-    'scrapy_proxy_pool.middlewares.ProxyPoolMiddleware': 610,
-    'scrapy_proxy_pool.middlewares.BanDetectionMiddleware': 620,
-    # ...
-}
-# # Enable or disable downloader middlewares
+# Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    "practice.middlewares.PracticeDownloaderMiddleware": 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+   # "recursion_url.middlewares.RecursionUrlDownloaderMiddleware": 543,
+   # 'scrapy_splash.SplashCookiesMiddleware': 723,
+   # 'scrapy_splash.SplashMiddleware': 725,
+   'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -81,7 +66,7 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   "practice.pipelines.PracticePipeline": 300,
+   "recursion_url.pipelines.RecursionUrlPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -109,3 +94,23 @@ ITEM_PIPELINES = {
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
+
+# Splash settings
+# SPLASH_URL = 'http://localhost:8050'
+# DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+# HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
+
+
+# settings.py
+
+# 크롤링 깊이 제한 (예: 3)
+DEPTH_LIMIT = 5
+
+# 깊이 우선 순위 (양수면 깊이 우선, 음수면 너비 우선)
+DEPTH_PRIORITY = 1
+
+# 중복 필터링 클래스 (기본값 사용)
+DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
+
+# 중복 필터링 디버그 정보 출력
+DUPEFILTER_DEBUG = True
