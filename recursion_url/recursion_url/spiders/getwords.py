@@ -12,7 +12,7 @@ casino = ["도박", "카지노", "또또", "로또", "환불", "포인트"]
 adult = ["19", "유흥", "오피", "정화", "한국", "야동", "BJ"]
 
 class HostSpider(scrapy.Spider):
-    name = "host_spider"
+    name = "getwords"
     handle_httpstatus_list = [403, 404]  # HTTP 403, 404 상태 코드를 처리하도록 설정
 
     def __init__(self, *args, **kwargs):
