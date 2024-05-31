@@ -7,6 +7,8 @@ import scrapy
 
 
 class GetWordsItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    host = scrapy.Field()
+    redirect = scrapy.Field()
+    words = scrapy.Field()
+    count = scrapy.Field()
+
