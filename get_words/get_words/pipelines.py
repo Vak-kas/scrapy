@@ -21,7 +21,8 @@ class SQLitePipeline:
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS hosts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                host TEXT UNIQUE
+                host TEXT UNIQUE,
+                classification TEXT
             )
         ''')
         self.cursor.execute('''
@@ -40,7 +41,7 @@ class SQLitePipeline:
         self.connection.close()
 
     def process_item(self, item, spider):
-        self.cursor.execute('INSERT OR IGNORE INTO hosts (host) VALUES (?)', (item['host'],))
+        self.cursor.execute('INSERT OR IGNORE INTO hosts (host, classification) VALUES (?, ?)', (item['host'], None))
         self.cursor.execute('''
             INSERT INTO words_count (host, redirect, words, count)
             VALUES (?, ?, ?, ?)

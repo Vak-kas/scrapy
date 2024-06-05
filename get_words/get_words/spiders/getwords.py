@@ -18,7 +18,9 @@ from get_words.items import GetWordsItem
 class GetwordsSpider(scrapy.Spider):
     name = "getwords"
     custom_settings = {
-        # 'REDIRECT_ENABLED': True
+        'ITEM_PIPELINES': {
+            'get_words.pipelines.SQLitePipeline': 300,
+        }
     }
 
     def __init__(self, *args, **kwargs):
@@ -33,11 +35,10 @@ class GetwordsSpider(scrapy.Spider):
     def start_requests(self):
         if self.hosts_queue:
             current_url = self.hosts_queue.popleft()
-            yield scrapy.Request(url=current_url, callback=self.parse, errback=self.errback, dont_filter=True)
+            yield scrapy.Request(url=current_url, callback=self.parse, errback=self.errback, dont_filter=True, meta={'original_url': current_url})
 
     def parse(self, response):
-        original_url = response.meta.get('redirect_urls', [response.url])[0]
-        print(original_url)
+        original_url = response.meta.get('original_url')
         redirected_url = response.url
 
         texts = self.extract_with_scrapy(response)
@@ -64,7 +65,7 @@ class GetwordsSpider(scrapy.Spider):
 
         if self.hosts_queue:
             next_url = self.hosts_queue.popleft()
-            yield scrapy.Request(url=next_url, callback=self.parse, errback=self.errback, dont_filter=True)
+            yield scrapy.Request(url=next_url, callback=self.parse, errback=self.errback, dont_filter=True, meta={'original_url': next_url})
 
     def extract_with_selenium(self, response):
         try:
@@ -168,14 +169,10 @@ class GetwordsSpider(scrapy.Spider):
     def extract_words_count(self, words):
         return dict(Counter(words))
 
-    def save_words_count(self, url, count_words):
-        for word, count in count_words.items():
-            self.divide_file.write(f"{url} ---> {word}: {count}\n")
-
     def errback(self, failure):
         if self.hosts_queue:
             next_url = self.hosts_queue.popleft()
-            yield scrapy.Request(url=next_url, callback=self.parse, errback=self.errback, dont_filter=True)
+            yield scrapy.Request(url=next_url, callback=self.parse, errback=self.errback, dont_filter=True, meta={'original_url': next_url})
 
     def closed(self, reason):
         self.divide_file.close()
