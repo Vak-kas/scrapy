@@ -17,37 +17,41 @@ from get_words.items import GetWordsItem
 
 class GetwordsSpider(scrapy.Spider):
     name = "getwords"
-    custom_settings = {
-        'ITEM_PIPELINES': {
-            'get_words.pipelines.SQLitePipeline': 300,
-        }
-    }
 
+    # 초깃값 설정
     def __init__(self, *args, **kwargs):
         super(GetwordsSpider, self).__init__(*args, **kwargs)
-        self.divide_file = open('divide.txt', 'w', encoding='utf-8')
-        self.image_file = open('image.txt', 'w', encoding='utf-8')
-        self.hosts_queue = deque(open('hosts.txt', 'r', encoding='utf-8').read().strip().split("\n"))
+        self.divide_file = open('divide.txt', 'w', encoding='utf-8') #단어 추출이 잘 되었는지 확인하기 위함
+        self.image_file = open('image.txt', 'w', encoding='utf-8') #이미지 추출이 잘 되었는지 확인하기 위함
+        self.hosts_queue = deque(open('hosts.txt', 'r', encoding='utf-8').read().strip().split("\n")) #hosts.txt에서 값을 불러와서 큐에 넣기
 
+        #맥용 테서렉트 경로
         pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
         os.environ['TESSDATA_PREFIX'] = '/opt/homebrew/opt/tesseract/share/tessdata/'
 
+        #윈도우용 테서렉트 경로
+        # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+
+
+    #스크래피 첫 시작시
     def start_requests(self):
-        if self.hosts_queue:
-            current_url = self.hosts_queue.popleft()
+        if self.hosts_queue:  #큐가 비어있지 않다면 
+            current_url = self.hosts_queue.popleft() #맨 앞에서 시작
             yield scrapy.Request(url=current_url, callback=self.parse, errback=self.errback, dont_filter=True, meta={'original_url': current_url})
 
     def parse(self, response):
-        original_url = response.meta.get('original_url')
-        redirected_url = response.url
+        original_url = response.meta.get('original_url') #큐에서 가져온 오리지널 경로
+        redirected_url = response.url #반응하는 리다이렉트 경로
 
-        texts = self.extract_with_scrapy(response)
-        total_words = set(texts)
+        texts = self.extract_with_scrapy(response) #스크래피로부터 단어 추출
+        total_words = set(texts) #단어 개수 세기 위하여(중복 제거)
 
-        if len(total_words) < 10:
-            texts.extend(self.extract_with_selenium(response))
+        if len(total_words) < 10: #x개 미만이라면
+            texts.extend(self.extract_with_selenium(response)) #셀레니움으로 다시 체크
 
-        image_texts = list(self.extract_in_image(response, original_url))
+        #이미지로부터 글씨 뽑아오기
+        image_texts = list(self.extract_in_image(response, original_url)) #리스트형태로 이미지에서 글씨 뽑아오기
         for future in image_texts:
             res = yield future
             if res and 'gettext' in res.meta:
@@ -113,11 +117,11 @@ class GetwordsSpider(scrapy.Spider):
         for img_url in img_urls:
             if not img_url.startswith(('http', 'https')):
                 img_url = urljoin(response.url, img_url)
-            yield Request(img_url, callback=self.parse_image, meta={'img_url': img_url, 'current_url': original_url})
+            yield Request(img_url, callback=self.parse_image, meta={'img_url': img_url, 'original_url': original_url})
 
     def parse_image(self, response):
         img_url = response.meta['img_url']
-        current_url = response.meta['current_url']
+        original_url = response.meta['original_url']
 
         try:
             img = Image.open(BytesIO(response.body))
@@ -133,27 +137,17 @@ class GetwordsSpider(scrapy.Spider):
                 gettext = self.process_text(text)
                 if gettext:
                     self.image_file.write(f"{img_url} : {', '.join(gettext)}\n")
-                    current_texts = getattr(response.meta, 'gettext', [])
-                    current_texts.extend(gettext)
-                    response.meta['gettext'] = current_texts
-                    return Request(url=current_url, callback=self.continue_parse, meta=response.meta, dont_filter=True)
+                    count_words = self.extract_words_count(gettext)
+
+                    for word, count in count_words.items():
+                        item = GetWordsItem()
+                        item['host'] = original_url
+                        item['redirect'] = None
+                        item['words'] = word
+                        item['count'] = count
+                        yield item
         except Exception as e:
             return
-
-    def continue_parse(self, response):
-        original_url = response.meta['current_url']
-        redirected_url = response.url
-
-        texts = response.meta.get('gettext', [])
-        count_words = self.extract_words_count(texts)
-
-        for word, count in count_words.items():
-            item = GetWordsItem()
-            item['host'] = original_url
-            item['redirect'] = redirected_url if redirected_url != original_url else None
-            item['words'] = word
-            item['count'] = count
-            yield item
 
     def process_text(self, text):
         text = re.sub(r'\b[ㄱ-ㅎㅏ-ㅣ]\b', '', text)
