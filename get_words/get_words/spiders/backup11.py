@@ -2,7 +2,7 @@ import pytesseract
 import re
 import scrapy
 from io import BytesIO
-from PIL import Image, ImageSequence
+from PIL import Image
 from scrapy.http import Request
 from urllib.parse import urljoin
 from collections import deque, Counter
@@ -16,13 +16,13 @@ import os
 from get_words.items import GetWordsItem
 
 class GetwordsSpider(scrapy.Spider):
-    name = "getwords"
+    name = "getwords1111"
 
     # 초깃값 설정
     def __init__(self, *args, **kwargs):
         super(GetwordsSpider, self).__init__(*args, **kwargs)
         # self.divide_file = open('divide.txt', 'w', encoding='utf-8') #단어 추출이 잘 되었는지 확인하기 위함
-        # self.image_file = open('image.txt', 'w', encoding='utf-8') #이미지 추출이 잘 되었는지 확인하기 위함
+        self.image_file = open('image.txt', 'w', encoding='utf-8') #이미지 추출이 잘 되었는지 확인하기 위함
         self.hosts_queue = deque(open('hosts.txt', 'r', encoding='utf-8').read().strip().split("\n")) #hosts.txt에서 값을 불러와서 큐에 넣기
 
         #맥용 테서렉트 경로
@@ -47,7 +47,7 @@ class GetwordsSpider(scrapy.Spider):
         texts = self.extract_with_scrapy(response) #스크래피로부터 단어 추출
         total_words = set(texts) #단어 개수 세기 위하여(중복 제거)
 
-        if len(total_words) < 100: #x개 미만이라면
+        if len(total_words) < 10: #x개 미만이라면
             texts.extend(self.extract_with_selenium(response)) #셀레니움으로 다시 체크
 
         #이미지로부터 글씨 뽑아오기
@@ -113,7 +113,7 @@ class GetwordsSpider(scrapy.Spider):
 
         # 이미지에서 단어 추출하는 코드
     def extract_in_image(self, response, original_url):
-        # self.image_file.write(f"{original_url}\n")
+        self.image_file.write(f"{original_url}\n")
         #수정: src 속성은 이미지를 즉시 로드하여 표시하는 데 사용되고, data-original 속성은 이미지를 나중에 필요할 때 로드하는 데 사용
         img_urls = response.css('img::attr(src), img::attr(data-original), img::attr(data-src)').extract()
         print(img_urls, len(img_urls))
@@ -125,7 +125,6 @@ class GetwordsSpider(scrapy.Spider):
     def parse_image(self, response):
         img_url = response.meta['img_url']
         original_url = response.meta['original_url']
-        redirected_url = response.url # 리다이렉트된 URL을 추가로 저장합니다.
 
         try:
             img = Image.open(BytesIO(response.body))
@@ -137,7 +136,7 @@ class GetwordsSpider(scrapy.Spider):
             width, height = img.size
 
             if width > min_image_width and height > min_image_height:
-                # 수정: gif 파일일 경우 마지막 프레임만 추출하기 (대략적인 내용은 마지막에만 담겨있음)
+                #수정: gif파일일 경우 마지막 프레임만 추출하기(대략적인 내용은 마지막에만 담겨있음)
                 if img.format == 'GIF':
                     frames = ImageSequence.Iterator(img)
                     for frame in frames:
@@ -154,13 +153,12 @@ class GetwordsSpider(scrapy.Spider):
                     for word, count in count_words.items():
                         item = GetWordsItem()
                         item['host'] = original_url
-                        item['redirect'] = redirected_url if redirected_url != original_url else None # 리다이렉트된 URL 설정
+                        item['redirect'] = None
                         item['words'] = word
                         item['count'] = count
                         yield item
         except Exception as e:
             return
-
 
     def process_text(self, text):
         text = re.sub(r'\b[ㄱ-ㅎㅏ-ㅣ]\b', '', text)
@@ -177,21 +175,10 @@ class GetwordsSpider(scrapy.Spider):
         return dict(Counter(words))
 
     def errback(self, failure):
-        original_url = failure.request.meta['original_url']
-        self.save_failed_url(original_url)
-
         if self.hosts_queue:
             next_url = self.hosts_queue.popleft()
             yield scrapy.Request(url=next_url, callback=self.parse, errback=self.errback, dont_filter=True, meta={'original_url': next_url})
 
-    def save_failed_url(self, url):
-        item = GetWordsItem()
-        item['host'] = url
-        item['redirect'] = None
-        item['words'] = None
-        item['count'] = None
-        self.crawler.engine.scraper.itemproc.process_item(item, self)
-
-    # def closed(self, reason):
-    #     self.divide_file.close()
-    #     self.image_file.close()
+    def closed(self, reason):
+        self.divide_file.close()
+        self.image_file.close()
